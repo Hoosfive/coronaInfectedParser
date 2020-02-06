@@ -1,36 +1,37 @@
 package com.company;
 
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
+import org.json.JSONObject;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.GregorianCalendar;
 
-public class InfectedParser {
-    Document doc;
+class InfectedParser {
+    private String url = "https://coronavirus-monitor.ru/api/v1/statistics/get-cities";
+    private HttpURLConnection connection;
     File outFile = new File("D:\\infectedCount.txt");
     private SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm:ss dd,MM");
-    FileOutputStream fos;
-    String infCount;
-    int actualValue = 0;
+    private FileOutputStream fos;
+    int currentValue,actualValue = 0,INTERVAL = 50000;
     InfectedParser() {
         while(true)
         {
             try {
-                doc = Jsoup.connect("http://ncov.dxy.cn/ncovh5/view/pneumonia?scene=2")
-                        .userAgent("Chrome/4.0.249.0 Safari/532.5")
-                        .referrer("http://www.google.com")
-                        .get();
-                infCount = doc.getElementById("getStatisticsService").data();// ElementsByTag("STRONG");
-                infCount = infCount.substring((infCount.indexOf("confirmedCount")),(infCount.indexOf("suspectedCount")));
-                infCount = infCount.substring(16,infCount.indexOf(","));
-                System.out.println(infCount);
-                if (actualValue != Integer.parseInt(infCount))
+                URL query = new URL(url);
+                connection = (HttpURLConnection) query.openConnection();
+                BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                String inputLine;
+                StringBuffer response = new StringBuffer();
+                while ((inputLine = in.readLine()) != null) {
+                    response.append(inputLine);
+                }
+                in.close();
+                currentValue = new JSONObject(response.toString()).getJSONObject("data").getInt("totalConfirmed");
+                if (actualValue != currentValue)
                 {
-                    actualValue = Integer.parseInt(infCount);
+                    actualValue = currentValue;
                     System.out.println(actualValue);
                     if (!outFile.exists())
                         outFile.createNewFile();
@@ -38,11 +39,11 @@ public class InfectedParser {
                     fos.write((actualValue + " Time: " + dateFormat.format((new GregorianCalendar()).getTime()) + "\n").getBytes());
                     fos.close();
                 }
-                Thread.sleep(30000);
+                Thread.sleep(INTERVAL);
             } catch (IOException | InterruptedException e) {
                 e.printStackTrace();
                 try {
-                    Thread.sleep(30000);
+                    Thread.sleep(INTERVAL);
                 } catch (InterruptedException e1) {
                     e1.printStackTrace();
                 }
